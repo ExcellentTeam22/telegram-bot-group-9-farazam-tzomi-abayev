@@ -5,9 +5,9 @@ import requests
 from blood_test_codes import blood_codes
 
 app = Flask(__name__)
-TOKEN = '5588135399:AAG55zMzVU4-guuD6MUxtcu3VwP5GSkplYc'
+TOKEN = '5529808312:AAG9smQzyXQzGTBt0T0wt-NqUfKW5jpwdko'
 TELEGRAM_INIT_WEBHOOK_URL = 'https://api.telegram.org/bot{}/setWebhook?url=' \
-                            'https://29a7-2-54-42-153.eu.ngrok.io/message'.format(TOKEN)
+                            'https://b432-82-80-173-170.eu.ngrok.io/message'.format(TOKEN)
 requests.get(TELEGRAM_INIT_WEBHOOK_URL)
 API_URL = "https://health.gov/myhealthfinder/api/v3/topicsearch.json?lang=en&keyword="
 
@@ -86,6 +86,7 @@ def handle_message():
 
     elif command[0] == "/tip":
         obj = handle_topic_search()
+
         ret_value = "For the key: {} Here are some articles that may interest you \n".format(create_keyword_list())
         for article in obj:
             ret_value += article["Title"] + ": \n"
@@ -93,7 +94,7 @@ def handle_message():
         if obj.__len__() != 0:
             ret_img_url = obj[0]["ImageUrl"]
 
-        res = requests.get("https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}&photo={}"
+        res = requests.get("https://api.telegram.org/bot{}/sendPhoto?chat_id={}&caption={}&photo={}"
                            .format(TOKEN, chat_id, "Got message from {}\n{}".format(first_name, ret_value),
                                    ret_img_url))
 
