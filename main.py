@@ -1,49 +1,16 @@
+import json
+import random
+
 from flask import Flask, Response, request
 import requests
 import math
 
 app = Flask(__name__)
-TOKEN = '5529808312:AAG9smQzyXQzGTBt0T0wt-NqUfKW5jpwdko'
+TOKEN = '5588135399:AAG55zMzVU4-guuD6MUxtcu3VwP5GSkplYc'
 TELEGRAM_INIT_WEBHOOK_URL = 'https://api.telegram.org/bot{}/setWebhook?url=' \
-                            'https://d0f3-2-54-48-229.eu.ngrok.io/message'.format(TOKEN)
+                            'https://29a7-2-54-42-153.eu.ngrok.io/message'.format(TOKEN)
 requests.get(TELEGRAM_INIT_WEBHOOK_URL)
-
-
-def is_prime(number: str) -> str:
-    number = int(number)
-    if number > 1:
-        for i in range(2, number):
-            if (number % i) == 0:
-                return "the {} is not prime".format(number)
-        return "{} is prime".format(number)
-
-
-def factorial(number: str) -> str:
-    number = int(number)
-    fact = 1
-
-    for i in range(1, number + 1):
-        fact = fact * i
-    return "the factorial of the {} is {}".format(number, fact)
-
-
-def is_palindrome(word: str) -> str:
-    palindrome = word == word[::-1]
-    return "{} is {} palindrome".format(word, " " if palindrome else "not")
-
-
-def sqrt(number: str) -> str:
-    number = int(number)
-    root = math.sqrt(number)
-    # return int(root + 0.5) ** 2 == number
-    has_sqrt = int(root + 0.5) ** 2 == number
-    return "{} {} an integer square root".format(number, "have" if has_sqrt else "not have")
-
-
-route_dictionary = {"/prime": is_prime,
-                    "/factorial": factorial,
-                    "/palindrome": is_palindrome,
-                    "/sqrt": sqrt}
+API_URL = "https://health.gov/myhealthfinder/api/v3/topicsearch.json?lang=en&keyword="
 
 
 @app.route('/')
@@ -51,35 +18,62 @@ def home_page():
     return "home page"
 
 
+def handle_topic_search():
+    if "edited_message" in request.get_json():
+        keywords = request.get_json()["edited_message"]["text"].split()
+    else:
+        keywords = request.get_json()["message"]["text"].split()
+    keywords = keywords[1:]
+    print("keywords", keywords)
+    search_string = "%20".join(keywords)
+    print("search_string", search_string)
+    url = API_URL + "".join(keywords)
+    response_api = requests.get(url=url)
+    data = response_api.text
+    parse_json = json.loads(data)
+
+    random_list = random.choices(parse_json["Result"]["Resources"]["Resource"], k=3)
+    res = dict()
+    for i in range(3):
+        res[i] = {"Title": random_list[i]["Title"],
+                  "ImageUrl": random_list[i]["ImageUrl"],
+                  "ArticleUrl": random_list[i]["AccessibleVersion"]}
+    return res
+
+
 @app.route('/message', methods=["POST"])
 def handle_message():
     print("in got message")
-    chat_id = request.get_json()['message']['chat']['id']
-    first_name = request.get_json()['message']['from']['first_name']
-    command = request.get_json()['message']['text'].split()
-    print(command)
-    if command[0] in route_dictionary:
-        print("in the if")
-        ret_value = route_dictionary[command[0]](str(command[1]))
+    print(request.get_json())
+    print("*" * 20)
+    if "edited_message" in request.get_json():
+        chat_id = request.get_json()["edited_message"]["chat"]["id"]
+        first_name = request.get_json()['edited_message']['from']['first_name']
+        command = request.get_json()['edited_message']['text'].split()
+    else:
+        chat_id = request.get_json()['message']['chat']['id']
+        first_name = request.get_json()['message']['from']['first_name']
+        command = request.get_json()['message']['text'].split()
+    if command[0] == "/tip":
+        obj = handle_topic_search()
+        print("\nobj = ", obj)
+        if "edited_message" in request.get_json():
+            keywords = request.get_json()["edited_message"]["text"].split()
+        else:
+            keywords = request.get_json()["message"]["text"].split()
+        keywords = keywords[1:]
+        ret_value = "For the key: {} Here are some articles that may interest you \n".format(keywords)
+        for article in obj:
+            ret_value += obj[article]["Title"] + ": \n"
+            ret_value += obj[article]["ArticleUrl"] + ": \n"
+        ret_img_url = obj[1]["ImageUrl"]
     else:
         print("in the else")
         ret_value = "We dont have this command"
-    print("*"*20)
-    print(ret_value)
-    print("*"*20)
-    print(request.get_json()['message']['text'])
-    res = requests.get("https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}"
-                       .format(TOKEN, chat_id, "Got message from {}\n{}".format(first_name, ret_value)))
-    return Response("success")
+        ret_img_url = "https://he.m.wikipedia.org/wiki/%D7%A7%D7%95%D7%91%D7%A5:Diagram_of_the_human_heart_%28cropped%29.svg"
 
-
-@app.route('/prime', methods=["POST"])
-def is_prime():
-    print("in is prime function")
-    chat_id = request.get_json()['message']['chat']['id']
-    print(request.get_json())
-    res = requests.get("https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}"
-                       .format(TOKEN, chat_id, "Got it"))
+    res = requests.get("https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}&photo={}"
+                       .format(TOKEN, chat_id, "Got message from {}\n{}".format(first_name, ret_value), ret_img_url))
     return Response("success")
 
 
